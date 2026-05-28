@@ -1,0 +1,64 @@
+# chat_gtf.yaml — Schema Definition
+# Version: 1.0
+# This file documents every field in the GTF format.
+
+meta:
+  project: "string — inferred project name"
+  stack: ["string — tech/language/framework"]
+  created: "YYYY-MM — when the original chat started"
+  last_updated: "YYYY-MM — when this GTF was last regenerated"
+  source_chats: ["string — filenames of chat exports used"]
+
+# Layer 1 — Exon Layer
+# Functionally important facts only. No filler (greetings, re-explanations, tangents).
+exons:
+  decisions: ["string — final committed decision, present tense"]
+  constants:
+    KEY: "value — immutable values: API endpoints, model names, version pins"
+  open_problems: ["string — unresolved problem or pending task"]
+  rejected_approaches: ["string — approach tried and explicitly abandoned"]
+  current_state: "string — one sentence: where the project stands right now"
+
+# Layer 2 — Associative Node Layer
+# One word triggers full context. Only entities mentioned 3+ times or central to the project.
+nodes:
+  EntityName:
+    type: "component | decision | constant | person | concept"
+    connects_to: ["OtherEntityName"]
+    decision: "string — what was decided about this entity"
+    state: "active | deprecated | planned"
+    file: "path/to/file.py or null"
+
+# Layer 3 — Diff Layer
+# Tracks how thinking evolved. Only entities whose approach CHANGED during the chat.
+diffs:
+  EntityName:
+    v1: "string — initial approach or value"
+    current: "vN — which version is current (e.g. v2, v3)"
+    why_changed: "string — reason the approach changed"
+
+# Layer 4 — Failure Memory Layer (most novel feature)
+# Immune system memory. Every failure stored with trigger words.
+# When a trigger word appears in a new chat, Claude warns BEFORE proceeding.
+failure_memory:
+  - id: "F001 — sequential, zero-padded"
+    what_tried: "string — the approach that failed"
+    exact_error: "string — exact error message or symptom"
+    time_wasted: "string — estimate (e.g. '2 hours', '30 minutes')"
+    trigger_words:
+      - "specific-term — NOT generic (e.g. 'useEffect cleanup' not 'React')"
+    never_again: true  # almost always true; false only for recoverable errors
+    unless: "string — condition under which this approach is OK, or null"
+    code_pattern_to_avoid: |
+      # optional: multiline code showing the bad pattern
+    safe_pattern: |
+      # optional: multiline code showing the correct pattern
+
+# Layer 5 — Dependency Web Layer
+# Blast radius tracking. If X changes, what breaks?
+dependencies:
+  EntityName:
+    if_changed:
+      - "string — what else breaks or needs updating"
+    safe_to_change: true  # false = warn user before suggesting changes
+    blast_radius: "HIGH | MEDIUM | LOW"

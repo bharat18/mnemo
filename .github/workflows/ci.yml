@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Lint with ruff
+        run: ruff check indexer.py mcp_server.py session_reader.py --select E,F,W --ignore E501
+
+      - name: Syntax check all Python files
+        run: |
+          python -m py_compile indexer.py
+          python -m py_compile mcp_server.py
+          python -m py_compile session_reader.py
+          echo "Syntax OK"
+
+      - name: Validate example GTF loads correctly
+        run: |
+          python -c "
+          import yaml
+          with open('examples/my_chat_gtf.yaml', encoding='utf-8') as f:
+              data = yaml.safe_load(f)
+          assert 'exons' in data, 'Missing exons layer'
+          assert 'nodes' in data, 'Missing nodes layer'
+          assert 'failure_memory' in data, 'Missing failure_memory layer'
+          assert len(data['failure_memory']) > 0, 'No failures in example GTF'
+          print(f'GTF OK: {len(data[\"nodes\"])} nodes, {len(data[\"failure_memory\"])} failures')
+          "
+
+      - name: Check MCP server lists all expected tools
+        run: |
+          python -c "
+          import re
+          with open('mcp_server.py') as f:
+              src = f.read()
+          tools = re.findall(r'name=\"(gtf_\w+)\"', src)
+          expected = [
+              'gtf_check_failures', 'gtf_get_node', 'gtf_get_decisions',
+              'gtf_get_open_problems', 'gtf_get_blast_radius', 'gtf_search',
+              'gtf_add_failure', 'gtf_get_summary', 'gtf_index', 'gtf_status',
+              'gtf_switch', 'gtf_list_projects', 'gtf_capture_session',
+              'gtf_set_root', 'gtf_checkpoint', 'gtf_prepare', 'gtf_save',
+              'gtf_mount'
+          ]
+          for t in expected:
+              assert t in tools, f'Missing tool: {t}'
+          print(f'MCP tools OK: {len(tools)} tools defined')
+          "

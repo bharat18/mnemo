@@ -1,0 +1,91 @@
+meta:
+  project: BioPrism Desktop App
+  stack:
+  - Python
+  - SQLite
+  - Tkinter
+  created: 2025-03
+  last_updated: 2025-03
+  source_chats:
+  - BioPrism Auth Refactor
+exons:
+  decisions:
+  - Store trial start date in ~/.bioprism/trial.json
+  - Use SQLite for activation keys
+  - Generate machine ID from hostname + CPU serial + OS install date
+  - Use HMAC-SHA256 with a server-side secret for activation key validation
+  - API_VERSION = 'v1' is pinned
+  - TRIAL_DAYS = 14
+  constants:
+    API_VERSION: v1
+    TRIAL_DAYS: '14'
+  open_problems:
+  - Implementing trial UI banner in main window title bar
+  rejected_approaches:
+  - Using MAC address for machine ID
+  - Salting activation keys with SHA256
+  - Using tkinter.messagebox for expiry dialog
+  current_state: Development of trial license system in progress with UI implementation
+    pending.
+nodes:
+  TrialManager:
+    type: component
+    connects_to:
+    - LicenseDB
+    - MainApp
+    decision: Handles trial logic and connects to related components
+    state: active
+    file: trial_manager.py
+  LicenseDB:
+    type: component
+    connects_to:
+    - TrialManager
+    decision: Stores activation keys securely
+    state: active
+    file: ~/.bioprism/license.db
+diffs:
+  TRIAL_DAYS:
+    v1: '7'
+    current: '14'
+    why_changed: User feedback suggested extending trial period
+failure_memory:
+- id: F001
+  what_tried: Using MAC address for machine ID
+  exact_error: Failed on VMs due to randomized MAC
+  time_wasted: 3 hours
+  trigger_words:
+  - MAC address
+  - VMs
+  never_again: true
+  unless: null
+  code_pattern_to_avoid: null
+  safe_pattern: null
+- id: F002
+  what_tried: Salting activation keys with SHA256
+  exact_error: Salt extracted from binary using strings command
+  time_wasted: null
+  trigger_words:
+  - salt
+  - SHA256
+  - strings command
+  never_again: true
+  unless: null
+  code_pattern_to_avoid: null
+  safe_pattern: null
+- id: F003
+  what_tried: Using tkinter.messagebox for expiry dialog
+  exact_error: Blocked main thread and froze app
+  time_wasted: 2 hours
+  trigger_words:
+  - tkinter.messagebox
+  - main thread
+  never_again: true
+  unless: null
+  code_pattern_to_avoid: null
+  safe_pattern: null
+dependencies:
+  TrialManager:
+    if_changed:
+    - MainApp
+    safe_to_change: false
+    blast_radius: HIGH

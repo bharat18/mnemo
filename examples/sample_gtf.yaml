@@ -1,0 +1,166 @@
+meta:
+  project: BioPrism Trial License System
+  stack:
+    - Python
+    - tkinter
+    - SQLite
+    - HMAC-SHA256
+  created: '2025-03'
+  last_updated: '2025-03'
+  source_chats:
+    - sample_export.md
+
+exons:
+  decisions:
+    - Use SQLite at ~/.bioprism/license.db for activation key storage
+    - Machine ID derived from hostname + CPU serial + OS install date (not MAC address)
+    - Key validation via HMAC-SHA256 with server-side secret, hitting API endpoint
+    - Trial duration is 14 days
+    - Expiry dialog deferred via app.after(0, show_expiry_dialog) to avoid thread blocking
+  constants:
+    TRIAL_DAYS: '14'
+    API_ENDPOINT: https://api.bioprism.io/v1/validate
+    API_VERSION: v1
+    LICENSE_DB_PATH: ~/.bioprism/license.db
+  open_problems:
+    - Trial banner in main window title bar not yet implemented
+  rejected_approaches:
+    - Plain text file for activation keys (too easy to bypass)
+    - MAC address for machine ID (randomized on VMs)
+    - SHA256 salt embedded in binary (extractable with strings command)
+    - 7-day trial period (changed after user feedback)
+    - tkinter.messagebox for expiry dialog (blocks main thread)
+  current_state: >-
+    TrialManager architecture decided and constants pinned. Trial UI banner still
+    outstanding. Core license DB schema and validation flow designed.
+
+nodes:
+  TrialManager:
+    type: component
+    connects_to:
+      - LicenseDB
+      - main_app
+    decision: First call in main_app.py startup; gates entire app launch
+    state: active
+    file: trial_manager.py
+  LicenseDB:
+    type: component
+    connects_to:
+      - TrialManager
+    decision: SQLite at ~/.bioprism/license.db with activations table
+    state: active
+    file: ~/.bioprism/license.db
+  MachineID:
+    type: concept
+    connects_to:
+      - TrialManager
+      - LicenseDB
+    decision: hostname + CPU serial + OS install date hash (not MAC address)
+    state: active
+    file: null
+  APIValidation:
+    type: component
+    connects_to:
+      - TrialManager
+    decision: HMAC-SHA256 server-side; hits https://api.bioprism.io/v1/validate
+    state: active
+    file: null
+  TrialBanner:
+    type: component
+    connects_to:
+      - main_app
+    decision: Show "Trial: X days remaining" in title bar
+    state: planned
+    file: null
+
+diffs:
+  TRIAL_DAYS:
+    v1: '7'
+    current: v2
+    why_changed: Changed to 14 after user feedback before launch
+  MachineID:
+    v1: MAC address hash
+    current: v2
+    why_changed: MAC is randomized on VMs — broke trial detection for 3 hours
+  KeyValidation:
+    v1: SHA256 with salt embedded in binary
+    current: v2
+    why_changed: Salt extracted from binary using strings command; moved to server-side HMAC
+
+failure_memory:
+  - id: F001
+    what_tried: MAC address for machine ID generation
+    exact_error: >-
+      MAC address is randomized on VMs; each launch generated a different machine
+      ID, making trial tracking impossible
+    time_wasted: 3 hours
+    trigger_words:
+      - MAC address
+      - getmac
+      - uuid.getnode
+      - machine identifier
+    never_again: true
+    unless: null
+    code_pattern_to_avoid: "machine_id = uuid.getnode()  # returns MAC-based int"
+    safe_pattern: >-
+      machine_id = hashlib.sha256(
+        (socket.gethostname() + str(cpu_serial) + os_install_date).encode()
+      ).hexdigest()
+  - id: F002
+    what_tried: SHA256 salt hardcoded in binary for key validation
+    exact_error: >-
+      Salt value visible in compiled binary via `strings bioprism.exe | grep salt`;
+      anyone could forge valid keys
+    time_wasted: unknown
+    trigger_words:
+      - hardcoded salt
+      - client-side crypto
+      - SHA256 secret
+      - embed secret
+    never_again: true
+    unless: null
+    code_pattern_to_avoid: "SALT = b'mysecret123'  # embedded in binary"
+    safe_pattern: >-
+      # Validate via API: POST https://api.bioprism.io/v1/validate
+      # Server holds the HMAC secret; client sends key + machine_id only
+  - id: F003
+    what_tried: tkinter.messagebox for trial expiry dialog
+    exact_error: >-
+      messagebox.showwarning() called from startup code blocked the main Tk thread;
+      app appeared frozen until user dismissed it
+    time_wasted: 2 hours
+    trigger_words:
+      - messagebox
+      - tkinter dialog
+      - showwarning startup
+      - modal dialog startup
+    never_again: true
+    unless: Dialog is triggered from a button press, not app startup
+    code_pattern_to_avoid: "tkinter.messagebox.showwarning('Trial Expired', '...')  # at startup"
+    safe_pattern: "app.after(0, lambda: show_expiry_dialog(app))  # deferred to event loop"
+
+dependencies:
+  TrialManager:
+    if_changed:
+      - main_app.py startup sequence breaks
+      - LicenseDB schema may need migration
+      - APIValidation endpoint calls may break
+    safe_to_change: false
+    blast_radius: HIGH
+  LicenseDB:
+    if_changed:
+      - TrialManager reads wrong schema
+      - Existing user activations lost if table dropped
+    safe_to_change: false
+    blast_radius: HIGH
+  API_ENDPOINT:
+    if_changed:
+      - All existing installations break validation silently
+      - Must version-bump and notify users
+    safe_to_change: false
+    blast_radius: HIGH
+  TrialBanner:
+    if_changed:
+      - UI cosmetic only
+    safe_to_change: true
+    blast_radius: LOW

@@ -1,0 +1,10 @@
+# Core
+pyyaml>=6.0
+colorama>=0.4.6
+
+# LLM providers (install at least one)
+openai>=1.0.0
+anthropic>=0.25.0
+
+# MCP server (only needed if using Claude Desktop integration)
+mcp>=1.0.0

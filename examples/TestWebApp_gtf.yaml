@@ -1,0 +1,36 @@
+meta:
+  project: Test WebApp Project
+  stack: [React, FastAPI, Python]
+  last_updated: 2026-04-28
+exons:
+  decisions:
+    - Use React 18 with TypeScript
+    - FastAPI backend with SQLModel ORM
+  constants:
+    PORT: '3000'
+    API_URL: http://localhost:8000
+  open_problems:
+    - Auth flow not implemented yet
+  rejected_approaches:
+    - Vue.js (team prefers React)
+  current_state: Initial setup done, auth pending
+nodes:
+  AuthModule:
+    type: component
+    state: planned
+    decision: JWT-based auth
+    connects_to: [APIClient]
+    file: src/auth/index.ts
+failure_memory:
+  - id: F001
+    what_tried: Using localStorage for JWT tokens
+    exact_error: XSS vulnerability - tokens exposed
+    time_wasted: 1 hour
+    trigger_words: [localStorage, JWT storage]
+    never_again: true
+    safe_pattern: Use httpOnly cookies instead
+dependencies:
+  AuthModule:
+    blast_radius: HIGH
+    safe_to_change: false
+    if_changed: [APIClient, all protected routes]

@@ -1,0 +1,29 @@
+{
+  "_comment": "Mnemo MCP Server — add the 'chat-gtf' block inside mcpServers in your config.",
+
+  "_config_locations": {
+    "Windows":   "%APPDATA%\\Claude\\claude_desktop_config.json",
+    "macOS":     "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "Claude Code (all platforms)": "~/.claude/settings.json  (under mcpServers key)"
+  },
+
+  "_python_command": {
+    "Windows": "python",
+    "macOS / Linux": "python3"
+  },
+
+  "mcpServers": {
+    "chat-gtf": {
+      "_windows_example": {
+        "command": "python",
+        "args": ["C:\\Users\\YOU\\path\\to\\mnemo\\mcp_server.py"]
+      },
+      "_macos_linux_example": {
+        "command": "python3",
+        "args": ["/Users/YOU/path/to/mnemo/mcp_server.py"]
+      },
+      "command": "REPLACE_WITH_PYTHON_OR_PYTHON3",
+      "args": ["REPLACE_WITH_ABSOLUTE_PATH_TO_mcp_server.py"]
+    }
+  }
+}

@@ -1,0 +1,82 @@
+# API keys and secrets
+.env
+.env.*
+*.key
+secrets.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# Chat exports (may contain private conversations)
+*_chat.md
+*_chat.txt
+chat_export.*
+*.chat.md
+
+# Generated GTF files (keep examples/, exclude personal ones)
+chat_gtf.yaml
+*_gtf.yaml
+!examples/*.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Temp files
+*.tmp
+*.log
+chunk_test.py
+enrich_run.py
+
+# Marketing screenshots (too large for git)
+marketing/screenshots/
+marketing/*.png
+marketing/*.jpg
+
+# Videos and large binary assets (host on YouTube / Google Drive instead)
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Large images
+Mnemo_video_thumbnail.png
+
+# Generated Office documents (not version-control friendly)
+Mnemo_Documentation.docx
+Mnemo.pptx
+
+# Doc generation helper (local only)
+create_doc.mjs
+docgen/
+
+# Personal example files (contain real session paths)
+examples/my_chat.md
+examples/summary.md
