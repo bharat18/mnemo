@@ -68,6 +68,24 @@ claude mcp add --scope user chat-gtf -- python /path/to/mnemo/mcp_server.py
 
 ---
 
+## Works With
+
+Mnemo is a standard MCP server — one install, works everywhere:
+
+| Platform | Status |
+|----------|--------|
+| **Claude Code** | ✅ Native |
+| **Claude Desktop** | ✅ |
+| **Cursor** | ✅ |
+| **Windsurf** | ✅ |
+| **Google Antigravity** | ✅ |
+
+**Mnemo running live in Google Antigravity:**
+
+![Mnemo in Google Antigravity](docs/screenshots/compat/antigravity_demo.jpg)
+
+---
+
 ## The 5 Layers
 
 | Layer | What it stores |
