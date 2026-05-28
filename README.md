@@ -29,25 +29,22 @@ Every time you hit Claude's context limit, you lose everything:
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/YOUR_USERNAME/chat-gtf
-cd chat-gtf
+git clone https://github.com/bharat18/mnemo
+cd mnemo
 pip install -r requirements.txt
 
-# 2. Export your Claude.ai chat
-# Open F12 > Console on any Claude.ai chat page
-# Paste export_chat.js and press Enter → downloads my_chat.md
+# 2. Add to Claude Code (works in ALL projects)
+claude mcp add --scope user chat-gtf -- python /path/to/mnemo/mcp_server.py
 
-# 3. Index it
-export OPENAI_API_KEY=sk-...          # or ANTHROPIC_API_KEY + --provider anthropic
-python indexer.py my_chat.md --provider openai
-# → creates my_chat_gtf.yaml
-
-# 4. Start a new Claude.ai chat
-# Attach chat_gtf.yaml + paste system_prompt.md → Claude has full context
+# 3. Restart Claude Code — Mnemo tools are now active
+#    Say "shifting to new chat" → session auto-captured
+#    In new session type: switch_gtf() → full context restored
 ```
 
 **Real benchmark:** 484,000-char BioPrism project chat → 11,000-char YAML
 - 97.6% token reduction · 41× smaller · 9 failure patterns captured
+
+📖 **[See full step-by-step guide with screenshots →](docs/how-it-works.md)**
 
 ---
 
@@ -100,56 +97,67 @@ python indexer.py my_chat.md --provider anthropic
 
 ---
 
-## Claude Desktop MCP Integration
+## MCP Integration (Claude Code / Claude Desktop / Cursor / Windsurf)
 
-Add to your `claude_desktop_config.json`
-(`%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+```bash
+# Claude Code — user scope (all projects)
+claude mcp add --scope user chat-gtf -- python /path/to/mnemo/mcp_server.py
+
+# Claude Desktop — add to claude_desktop_config.json
+# Cursor / Windsurf — add to mcp_config.json
+# Google Antigravity — add to ~/.gemini/config/mcp_config.json
+```
 
 ```json
 {
   "mcpServers": {
     "chat-gtf": {
       "command": "python",
-      "args": [
-        "C:/path/to/chat-gtf/mcp_server.py",
-        "C:/path/to/my_chat_gtf.yaml"
-      ]
+      "args": ["/path/to/mnemo/mcp_server.py"]
     }
   }
 }
 ```
 
-Claude can now call all 10 GTF tools directly — including `gtf_index` to
-create a new YAML without leaving Claude Desktop.
-
 Full setup guide: [docs/mcp-setup.md](docs/mcp-setup.md)
 
 ---
 
-## MCP Tools (10 total)
+## MCP Tools (20 total)
 
 | Tool | What it does |
 |------|-------------|
-| `gtf_check_failures` | Checks trigger words — called before every response |
-| `gtf_index` | Index a new chat export without leaving Claude Desktop |
-| `gtf_status` | Health check — is YAML loaded and valid? |
+| `gtf_capture_session` | Capture current session → GTF YAML (no API key needed) |
+| `gtf_checkpoint` | Save delta checkpoint mid-session |
+| `gtf_prepare` / `gtf_save` | 2-step manual capture flow |
+| `gtf_switch` | Switch active project (GUI picker or text menu) |
+| `gtf_mount` | Mount project folder — access files directly |
+| `gtf_set_root` | Link GTF to its project folder |
+| `gtf_check_failures` | Checks trigger words before every response |
+| `gtf_get_summary` | Full project overview for session start |
 | `gtf_get_node` | Full context for any named component or entity |
 | `gtf_get_decisions` | All committed decisions + rejected approaches |
 | `gtf_get_blast_radius` | What breaks if component X changes |
 | `gtf_get_open_problems` | Unresolved problems + current project state |
-| `gtf_search` | Keyword search across all 5 layers |
+| `gtf_search` | Keyword search across all GTF layers |
 | `gtf_add_failure` | Save a new failure to memory mid-session |
-| `gtf_get_summary` | Full project overview for session start |
+| `gtf_index` | Index a chat export file → GTF YAML |
+| `gtf_status` | Health check — is YAML loaded and valid? |
+| `gtf_list_projects` | List all available GTF projects |
+| `watch_video` | Extract frames from YouTube/local video (vision) |
+| `get_video_transcript` | Get YouTube transcript as timestamped text |
 
 ---
 
 ## Real-World Example
 
-See [`examples/my_chat_gtf.yaml`](examples/my_chat_gtf.yaml) — a real GTF from a 484k-char
-BioPrism bioinformatics desktop app project:
+See [`examples/TestWebApp_gtf.yaml`](examples/TestWebApp_gtf.yaml) — a GTF from a React + FastAPI project.
+
+Real benchmark from a BioPrism bioinformatics desktop app (484k-char chat):
 - 16 committed decisions, 16 nodes with file locations
 - 9 failure memories (F001–F009) with trigger words and safe patterns
 - 8 component diffs with evolution history
+- **Result: 484,000 chars → 11,000 chars (97.6% reduction)**
 
 ---
 
@@ -170,21 +178,23 @@ BioPrism bioinformatics desktop app project:
 ## Project Structure
 
 ```
-chat-gtf/
-├── indexer.py           ← Main script: chat export → YAML
-├── mcp_server.py        ← Claude Desktop MCP server (10 tools)
+mnemo/
+├── mcp_server.py        ← MCP server (20 tools) — the core of Mnemo
+├── session_reader.py    ← Claude Code JSONL session reader
+├── indexer.py           ← Chat export → GTF YAML pipeline
 ├── export_chat.js       ← Browser script to export Claude.ai chats
 ├── system_prompt.md     ← Paste into new Claude chat to activate memory
 ├── schema.yaml          ← Annotated YAML schema reference
 ├── requirements.txt
 ├── examples/
-│   └── my_chat_gtf.yaml ← Real BioPrism project GTF (484k → 11k chars)
+│   ├── TestWebApp_gtf.yaml   ← Sample GTF (React + FastAPI project)
+│   └── sample_gtf.yaml       ← Minimal GTF example
 ├── docs/
-│   ├── quickstart.md
-│   ├── mcp-setup.md
-│   └── architecture.md
+│   ├── how-it-works.md       ← Step-by-step guide with screenshots
+│   ├── mcp-setup.md          ← MCP setup for all platforms
+│   └── architecture.md       ← Technical deep-dive
 └── marketing/
-    └── index.html       ← Landing page (open locally)
+    └── index.html            ← Landing page
 ```
 
 ---
