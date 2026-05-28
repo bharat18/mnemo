@@ -48,6 +48,26 @@ claude mcp add --scope user chat-gtf -- python /path/to/mnemo/mcp_server.py
 
 ---
 
+## See It In Action
+
+**Step 1 — Say "shifting to new chat" → session auto-captured:**
+
+![Session saved](docs/screenshots/02_save_result.png)
+
+**Step 2 — Type `switch_gtf()` → project picker opens:**
+
+![Project picker](docs/screenshots/05_project_picker.png)
+
+**Step 3 — Full context restored instantly:**
+
+![Context restored](docs/screenshots/06_context_restored.png)
+
+**Step 4 — Claude remembers everything — no re-explaining:**
+
+![Memory recall](docs/screenshots/08_memory_recall.png)
+
+---
+
 ## The 5 Layers
 
 | Layer | What it stores |
