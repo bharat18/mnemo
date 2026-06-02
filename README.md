@@ -2,7 +2,7 @@
 
 > **Give Claude Permanent Memory**
 
-Mnemo compresses your entire Claude.ai conversation history into a structured YAML memory file.
+Mnemo extracts and summarizes your entire Claude.ai conversation history into a structured YAML memory file.
 Upload it once to a new chat — Claude instantly has full project context, past decisions, and a
 **Failure Memory** that auto-warns before repeating past mistakes.
 
