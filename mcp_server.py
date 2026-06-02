@@ -831,7 +831,8 @@ async def list_tools() -> list[types.Tool]:
                 "Switch the active project at runtime — no restart needed. "
                 "CALL WITH NO ARGUMENTS to show a numbered menu of all available "
                 "projects sorted newest-first. User then picks a number or name. "
-                "Pass a number (e.g. '1'), a project name, or a full YAML path."
+                "Pass a number (e.g. '1'), a project name, a full YAML path, "
+                "or a GitHub Gist URL to load a shared GTF from a teammate."
             ),
             inputSchema={
                 "type": "object",
@@ -841,7 +842,8 @@ async def list_tools() -> list[types.Tool]:
                         "description": (
                             "Leave EMPTY to show the menu. "
                             "Or pass: a number from the menu, a project name to fuzzy-match, "
-                            "or a full path to a _gtf.yaml file."
+                            "a full path to a _gtf.yaml file, "
+                            "or a GitHub Gist URL (https://gist.github.com/...) to load a shared GTF."
                         ),
                         "default": "",
                     }
@@ -1011,6 +1013,33 @@ async def list_tools() -> list[types.Tool]:
                     },
                 },
                 "required": ["path"],
+            },
+        ),
+        types.Tool(
+            name="gtf_share",
+            description=(
+                "Upload the active GTF YAML to a GitHub Gist and return a shareable URL. "
+                "Anyone with the URL can load the full project context using gtf_switch(url=...). "
+                "Requires the GitHub CLI (gh) to be installed and authenticated."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "public": {
+                        "type": "boolean",
+                        "description": (
+                            "If true, the Gist is publicly searchable on GitHub. "
+                            "If false (default), it is a secret Gist — only people with the URL can see it."
+                        ),
+                        "default": False,
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description for the Gist (shown on GitHub).",
+                        "default": "",
+                    },
+                },
+                "required": [],
             },
         ),
     ]
@@ -1390,6 +1419,53 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
     # ── gtf_switch ────────────────────────────────────────────────────────────
     elif name == "gtf_switch":
         project = arguments.get("project", "").strip()
+
+        # ── Case 0: GitHub Gist URL → download and load ───────────────────────
+        if project.startswith("https://gist.github.com/"):
+            import tempfile, urllib.request
+            try:
+                # Convert Gist URL to raw content URL
+                # https://gist.github.com/user/abc123  →  https://gist.githubusercontent.com/user/abc123/raw
+                raw_url = project.replace(
+                    "https://gist.github.com/",
+                    "https://gist.githubusercontent.com/"
+                ) + "/raw"
+
+                with urllib.request.urlopen(raw_url, timeout=15) as resp:
+                    content = resp.read().decode("utf-8")
+
+                # Save to a temp file
+                tmp_dir  = Path(tempfile.mkdtemp(prefix="mnemo_shared_"))
+                tmp_file = tmp_dir / "shared_gtf.yaml"
+                tmp_file.write_text(content, encoding="utf-8")
+
+                # Try to extract project name from YAML
+                try:
+                    import yaml as _yaml
+                    data = _yaml.safe_load(content)
+                    pname = data.get("meta", {}).get("project_name", "Shared Project")
+                except Exception:
+                    pname = "Shared Project"
+
+                _active_gtf_path = tmp_file
+                return [types.TextContent(
+                    type="text",
+                    text=(
+                        f"✅ Shared GTF loaded from Gist!\n\n"
+                        f"Project : {pname}\n"
+                        f"Source  : {project}\n"
+                        f"Saved to: {tmp_file}\n\n"
+                        "Full project context is now active. Use gtf_get_summary() to see everything."
+                    ),
+                )]
+            except Exception as exc:
+                return [types.TextContent(
+                    type="text",
+                    text=(
+                        f"❌ Failed to load GTF from Gist: {exc}\n\n"
+                        "Make sure the Gist URL is correct and publicly accessible."
+                    ),
+                )]
 
         # ── Case 1: No argument → open GUI picker (text fallback if no display) ─
         if not project:
@@ -2021,6 +2097,81 @@ Output path: {yaml_out}
             type="text",
             text=header + "\n".join(found.values()) + "\nUse gtf_switch('project name') to switch.",
         )]
+
+    # ── gtf_share ─────────────────────────────────────────────────────────────
+    elif name == "gtf_share":
+        if not _active_gtf_path or not _active_gtf_path.exists():
+            return [types.TextContent(
+                type="text",
+                text="❌ No active GTF loaded. Use gtf_switch() first to load a project.",
+            )]
+
+        is_public   = arguments.get("public", False)
+        description = arguments.get("description", "").strip()
+
+        gtf_filename = _active_gtf_path.name
+        project_name = gtf.get("meta", {}).get("project_name", gtf_filename)
+
+        if not description:
+            description = f"Mnemo GTF — {project_name}"
+
+        visibility_flag = "--public" if is_public else "--secret"
+
+        try:
+            result = subprocess.run(
+                [
+                    "gh", "gist", "create",
+                    str(_active_gtf_path),
+                    visibility_flag,
+                    "--desc", description,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                return [types.TextContent(
+                    type="text",
+                    text=(
+                        "❌ GitHub Gist upload failed.\n\n"
+                        f"Error: {result.stderr.strip()}\n\n"
+                        "Make sure:\n"
+                        "  1. GitHub CLI is installed: winget install GitHub.cli\n"
+                        "  2. You are logged in: gh auth login"
+                    ),
+                )]
+
+            gist_url = result.stdout.strip()
+
+            return [types.TextContent(
+                type="text",
+                text=(
+                    f"✅ GTF shared successfully!\n\n"
+                    f"Project  : {project_name}\n"
+                    f"Gist URL : {gist_url}\n"
+                    f"Visible  : {'Public' if is_public else 'Secret (only people with the link)'}\n\n"
+                    f"To load this context in any new session:\n"
+                    f"  gtf_switch(url=\"{gist_url}\")\n\n"
+                    f"Or share this link with a teammate — they can load your full project context instantly."
+                ),
+            )]
+
+        except FileNotFoundError:
+            return [types.TextContent(
+                type="text",
+                text=(
+                    "❌ GitHub CLI (gh) not found.\n\n"
+                    "Install it with:\n"
+                    "  winget install GitHub.cli\n\n"
+                    "Then authenticate:\n"
+                    "  gh auth login"
+                ),
+            )]
+        except subprocess.TimeoutExpired:
+            return [types.TextContent(type="text", text="❌ Timed out uploading to GitHub Gist. Check your internet connection.")]
+        except Exception as exc:
+            return [types.TextContent(type="text", text=f"❌ Error: {exc}")]
 
     # ── Unknown ──────────────────────────────────────────────────────────────
     return [types.TextContent(type="text", text=f"Unknown tool: {name}")]

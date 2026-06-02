@@ -161,14 +161,15 @@ Full setup guide: [docs/mcp-setup.md](docs/mcp-setup.md)
 
 ---
 
-## MCP Tools (18 total)
+## MCP Tools (19 total)
 
 | Tool | What it does |
 |------|-------------|
 | `gtf_capture_session` | Capture current session → GTF YAML (no API key needed) |
 | `gtf_checkpoint` | Save delta checkpoint mid-session |
 | `gtf_prepare` / `gtf_save` | 2-step manual capture flow |
-| `gtf_switch` | Switch active project (GUI picker or text menu) |
+| `gtf_switch` | Switch active project — picker, name, path, or Gist URL |
+| `gtf_share` | Upload GTF to GitHub Gist → shareable URL for teammates |
 | `gtf_mount` | Mount project folder — access files directly |
 | `gtf_set_root` | Link GTF to its project folder |
 | `gtf_check_failures` | Checks trigger words before every response |
