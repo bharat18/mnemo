@@ -2117,11 +2117,78 @@ Output path: {yaml_out}
 
         visibility_flag = "--public" if is_public else "--secret"
 
+        # ── Sanitize: replace absolute paths with relative before uploading ──
+        import copy, tempfile, re as _re
+
+        def _sanitize_paths(data: dict) -> dict:
+            """Return a deep copy with absolute paths replaced by relative placeholders."""
+            sanitized = copy.deepcopy(data)
+
+            # Get project_root to make paths relative (if available)
+            project_root = sanitized.get("meta", {}).get("project_root", "")
+
+            def relativize(val: str) -> str:
+                if not isinstance(val, str):
+                    return val
+                # Windows absolute path: C:\... or C:/...
+                # Unix absolute path: /home/... or /Users/...
+                if _re.match(r'^[A-Za-z]:[/\\]', val) or val.startswith('/'):
+                    if project_root and val.startswith(project_root):
+                        # Make relative to project root
+                        rel = val[len(project_root):].lstrip('/\\')
+                        return f"./{rel}" if rel else "."
+                    else:
+                        # Replace with placeholder — keep filename only
+                        return f"<path>/{Path(val).name}"
+                return val
+
+            # Sanitize meta.project_root
+            if "meta" in sanitized:
+                sanitized["meta"]["project_root"] = "<project-root>"
+
+            # Sanitize nodes (dict or list)
+            nodes = sanitized.get("nodes", {})
+            if isinstance(nodes, dict):
+                for node in nodes.values():
+                    if isinstance(node, dict):
+                        for key in ("file", "file_path", "path", "location"):
+                            if key in node:
+                                node[key] = relativize(node[key])
+            elif isinstance(nodes, list):
+                for node in nodes:
+                    if isinstance(node, dict):
+                        for key in ("file", "file_path", "path", "location"):
+                            if key in node:
+                                node[key] = relativize(node[key])
+
+            # Sanitize exons (decisions, constants, etc.)
+            exons = sanitized.get("exons", {})
+            if isinstance(exons, dict):
+                for section in exons.values():
+                    if isinstance(section, list):
+                        for item in section:
+                            if isinstance(item, dict):
+                                for key in ("file", "file_path", "path", "location"):
+                                    if key in item:
+                                        item[key] = relativize(item[key])
+
+            return sanitized
+
+        sanitized_gtf = _sanitize_paths(gtf)
+
+        # Write sanitized YAML to a temp file for upload
+        tmp_share_dir  = Path(tempfile.mkdtemp(prefix="mnemo_share_"))
+        tmp_share_file = tmp_share_dir / gtf_filename
+
+        with open(tmp_share_file, "w", encoding="utf-8") as f:
+            yaml.dump(sanitized_gtf, f, default_flow_style=False,
+                      allow_unicode=True, sort_keys=False)
+
         try:
             result = subprocess.run(
                 [
                     "gh", "gist", "create",
-                    str(_active_gtf_path),
+                    str(tmp_share_file),
                     visibility_flag,
                     "--desc", description,
                 ],
@@ -2172,6 +2239,9 @@ Output path: {yaml_out}
             return [types.TextContent(type="text", text="❌ Timed out uploading to GitHub Gist. Check your internet connection.")]
         except Exception as exc:
             return [types.TextContent(type="text", text=f"❌ Error: {exc}")]
+        finally:
+            import shutil as _shutil
+            _shutil.rmtree(tmp_share_dir, ignore_errors=True)
 
     # ── Unknown ──────────────────────────────────────────────────────────────
     return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
