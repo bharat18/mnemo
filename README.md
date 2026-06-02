@@ -161,7 +161,7 @@ Full setup guide: [docs/mcp-setup.md](docs/mcp-setup.md)
 
 ---
 
-## MCP Tools (20 total)
+## MCP Tools (18 total)
 
 | Tool | What it does |
 |------|-------------|
@@ -182,8 +182,6 @@ Full setup guide: [docs/mcp-setup.md](docs/mcp-setup.md)
 | `gtf_index` | Index a chat export file → GTF YAML |
 | `gtf_status` | Health check — is YAML loaded and valid? |
 | `gtf_list_projects` | List all available GTF projects |
-| `watch_video` | Extract frames from YouTube/local video (vision) |
-| `get_video_transcript` | Get YouTube transcript as timestamped text |
 
 ---
 
