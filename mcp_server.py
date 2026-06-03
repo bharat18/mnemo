@@ -97,6 +97,17 @@ def _registry_clean() -> None:
         pass
 
 
+def _registry_remove(path: Path) -> None:
+    """Remove a specific GTF path from the registry."""
+    try:
+        entries = _registry_load()
+        key     = str(path.resolve())
+        updated = [p for p in entries if p != key]
+        _REGISTRY_PATH.write_text(json.dumps(updated, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Project scanner  (flat glob + registry — depth-independent)
 # ---------------------------------------------------------------------------
@@ -217,7 +228,7 @@ def _show_picker_gui(projects: list[tuple[float, Path, dict]]) -> Optional[Path]
                  bg="#0f0f1a", fg="#a78bfa",
                  font=("Segoe UI", 13, "bold"),
                  anchor="w").pack(fill="x", pady=(10, 4), padx=10)
-        tk.Label(root, text="  Sorted newest first  •  Double-click or select + Load",
+        tk.Label(root, text="  Sorted newest first  •  Double-click or Load to open  •  Delete to remove  •  Del key shortcut",
                  bg="#0f0f1a", fg="#4b5563",
                  font=("Segoe UI", 9),
                  anchor="w").pack(fill="x", padx=10)
@@ -312,9 +323,40 @@ def _show_picker_gui(projects: list[tuple[float, Path, dict]]) -> Optional[Path]
         def on_cancel():
             root.destroy()
 
+        def on_delete(*_):
+            from tkinter import messagebox
+            sel = tree.selection()
+            if not sel:
+                messagebox.showwarning("No Selection", "Select a project to delete.", parent=root)
+                return
+            path      = Path(sel[0])
+            proj_name = next(
+                (m.get("meta", {}).get("project", path.stem) for _, p, m in projects if str(p) == sel[0]),
+                path.stem,
+            )
+            confirm = messagebox.askyesno(
+                "Delete Project",
+                f"Delete '{proj_name}'?\n\nThis will permanently remove the YAML file:\n{path}\n\nThis cannot be undone.",
+                icon="warning",
+                parent=root,
+            )
+            if not confirm:
+                return
+            try:
+                path.unlink(missing_ok=True)
+                _registry_remove(path)
+                tree.delete(sel[0])
+                info_var.set(f"  ✓ Deleted: {path.name}")
+                # If deleted project was active, clear info bar
+                if str(path.resolve()) == str(_active_gtf_path.resolve()):
+                    info_var.set("  ⚠ Active project was deleted — switch to another project.")
+            except Exception as exc:
+                messagebox.showerror("Error", f"Could not delete file:\n{exc}", parent=root)
+
         tree.bind("<Double-1>", on_load)
         root.bind("<Return>",   on_load)
         root.bind("<Escape>",   lambda _: on_cancel())
+        root.bind("<Delete>",   on_delete)   # keyboard shortcut
 
         def on_browse():
             from tkinter import filedialog
@@ -341,6 +383,14 @@ def _show_picker_gui(projects: list[tuple[float, Path, dict]]) -> Optional[Path]
                   font=("Segoe UI", 10, "bold"),
                   relief="flat", padx=16, pady=6,
                   activebackground="#6d28d9",
+                  cursor="hand2").pack(side="right", padx=(6, 0))
+
+        tk.Button(btn_frame, text="🗑 Delete",
+                  command=on_delete,
+                  bg="#7f1d1d", fg="#fca5a5",
+                  font=("Segoe UI", 10),
+                  relief="flat", padx=14, pady=6,
+                  activebackground="#991b1b",
                   cursor="hand2").pack(side="right", padx=(6, 0))
 
         tk.Button(btn_frame, text="Browse...",
